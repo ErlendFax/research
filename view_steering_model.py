@@ -50,6 +50,8 @@ def perspective_tform(x, y):
 # ***** functions to draw lines *****
 def draw_pt(img, x, y, color, sz=1):
   row, col = perspective_tform(x, y)
+  row=int(row)
+  col=int(col)
   if row >= 0 and row < img.shape[0] and\
      col >= 0 and col < img.shape[1]:
     img[row-sz:row+sz, col-sz:col+sz] = color
