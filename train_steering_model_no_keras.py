@@ -53,7 +53,7 @@ if __name__ == "__main__":
   parser.add_argument('--port', type=int, default=5557, help='Port of server.')
   parser.add_argument('--val_port', type=int, default=5556, help='Port of server for validation dataset.')
   parser.add_argument('--batch', type=int, default=64, help='Batch size.')
-  parser.add_argument('--epoch', type=int, default=2, help='Number of epochs.')
+  parser.add_argument('--epoch', type=int, default=200, help='Number of epochs.')
   parser.add_argument('--epochsize', type=int, default=10000, help='How many frames per epoch.')
   parser.add_argument('--skipvalidate', dest='skipvalidate', action='store_true', help='Multiple path output.')
   parser.set_defaults(skipvalidate=False)
@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
   sess.run(tf.global_variables_initializer())
 
-  for i in range(200):
+  for i in range(args.epoch):
     batch_xs, batch_ys = next(gen(20, args.host, port=args.port))
     batch_xs = np.reshape(batch_xs,(-1,153600))
     sess.run(train, feed_dict={xs: batch_xs, ys: batch_ys})
