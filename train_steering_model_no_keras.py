@@ -10,6 +10,12 @@ import numpy as np
 
 from server import client_generator
 
+#def show_progress(epoch, feed_dict_train, feed_dict_validate, val_loss):
+#    acc = sess.run(accuracy, feed_dict=feed_dict_train)
+#    val_acc = sess.run(accuracy, feed_dict=feed_dict_validate)
+#    msg = "Training Epoch {0} --- Training Accuracy: {1:>6.1%}, Validation Accuracy: {2:>6.1%},  Validation Loss: {3:.3f}"
+#    print(msg.format(epoch + 1, acc, val_acc, val_loss))
+
 def compute_accuracy(v_xs, v_ys):
 	global prediction
 	y_pre = sess.run(prediction, feed_dict={xs: v_xs})
@@ -52,8 +58,8 @@ if __name__ == "__main__":
   parser.add_argument('--host', type=str, default="localhost", help='Data server ip address.')
   parser.add_argument('--port', type=int, default=5557, help='Port of server.')
   parser.add_argument('--val_port', type=int, default=5556, help='Port of server for validation dataset.')
-  parser.add_argument('--batch', type=int, default=64, help='Batch size.')
-  parser.add_argument('--epoch', type=int, default=200, help='Number of epochs.')
+  parser.add_argument('--batch', type=int, default=25, help='Batch size.')
+  parser.add_argument('--epoch', type=int, default=20, help='Number of epochs.')
   parser.add_argument('--epochsize', type=int, default=10000, help='How many frames per epoch.')
   parser.add_argument('--skipvalidate', dest='skipvalidate', action='store_true', help='Multiple path output.')
   parser.set_defaults(skipvalidate=False)
@@ -101,14 +107,29 @@ if __name__ == "__main__":
     # dense2
   output = tf.layers.dense(elu2, 1) # output
 
-  loss = tf.sqrt(tf.reduce_mean(tf.square(tf.subtract(ys, output))))
+  with tf.name_scope("Loss"):
+      loss = tf.sqrt(tf.reduce_mean(tf.square(tf.subtract(ys, output))))
+      tf.summary.scalar("loss",loss)
 
   train = tf.train.AdamOptimizer().minimize(loss, global_step=tf.train.get_global_step())
+
+  merged = tf.summary.merge_all()
+  writer = tf.summary.FileWriter("tb-logs-no-keras/", sess.graph)
+
 
   sess.run(tf.global_variables_initializer())
 
   for i in range(args.epoch):
-    batch_xs, batch_ys = next(gen(20, args.host, port=args.port))
-    batch_xs = np.reshape(batch_xs,(-1,153600))
-    sess.run(train, feed_dict={xs: batch_xs, ys: batch_ys})
-    print "Epoch: ", '%3s' % i, " Loss: ", '%4s' % sess.run(loss, feed_dict={xs: batch_xs, ys: batch_ys})
+      for j in range(args.epochsize/200):
+          batch_xs, batch_ys = next(gen(20, args.host, port=args.port))
+          batch_val_xs, batch_val_ys = next(gen(20, args.host, port=args.val_port))
+          batch_xs = np.reshape(batch_xs,(-1,153600))
+          sess.run(train, feed_dict={xs: batch_xs, ys: batch_ys})
+          if (j % 20 == 0):
+              result = sess.run(merged, feed_dict={xs: batch_xs, ys: batch_ys})
+              writer.add_summary(result, j)
+          if (j % 100 == 0):
+              batch_val_xs = np.reshape(batch_xs,(-1,153600))
+              val_loss = sess.run(loss, feed_dict={xs: batch_val_xs, ys: batch_val_ys})
+              print "Epoch: ", '%3s' % i, " Loss: ", '%4s' % sess.run(loss, feed_dict={xs: batch_xs, ys: batch_ys}), "Accuracy: ", '%4s' % val_loss
+              #show_progress(i,{xs: batch_xs, ys: batch_ys},{xs: batch_val_xs, ys: batch_val_ys},val_loss)
