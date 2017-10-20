@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 """
 Steering angle prediction model
+
+TensorFlow only!
+
 """
 import os
 import argparse
