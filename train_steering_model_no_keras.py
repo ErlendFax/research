@@ -16,13 +16,13 @@ from server import client_generator
 #    msg = "Training Epoch {0} --- Training Accuracy: {1:>6.1%}, Validation Accuracy: {2:>6.1%},  Validation Loss: {3:.3f}"
 #    print(msg.format(epoch + 1, acc, val_acc, val_loss))
 
-def compute_accuracy(v_xs, v_ys):
-	global prediction
-	y_pre = sess.run(prediction, feed_dict={xs: v_xs})
-	correct_prediction = tf.equal(tf.argmax(y_pre,1), tf.argmax(v_ys,1))
-	accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-	result = sess.run(accuracy, feed_dict={xs: v_xs, ys: v_ys})
-	return result
+#def compute_accuracy(v_xs, v_ys):
+	#global prediction
+	#y_pre = sess.run(prediction, feed_dict={xs: v_xs})
+	#correct_prediction = tf.equal(tf.argmax(y_pre,1), tf.argmax(v_ys,1))
+	#accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+	#result = sess.run(accuracy, feed_dict={xs: v_xs, ys: v_ys})
+	#return result
 
 def gen(hwm, host, port):
   for tup in client_generator(hwm=hwm, host=host, port=port):
@@ -131,5 +131,5 @@ if __name__ == "__main__":
           if (j % 100 == 0):
               batch_val_xs = np.reshape(batch_xs,(-1,153600))
               val_loss = sess.run(loss, feed_dict={xs: batch_val_xs, ys: batch_val_ys})
-              print "Epoch: ", '%3s' % i, " Loss: ", '%4s' % sess.run(loss, feed_dict={xs: batch_xs, ys: batch_ys}), "Accuracy: ", '%4s' % val_loss
+              print "Epoch: ", '%3s' % i, " Loss: ", '%4s' % sess.run(loss, feed_dict={xs: batch_xs, ys: batch_ys}), "Val loss: ", '%4s' % val_loss
               #show_progress(i,{xs: batch_xs, ys: batch_ys},{xs: batch_val_xs, ys: batch_val_ys},val_loss)
