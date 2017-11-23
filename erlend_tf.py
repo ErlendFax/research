@@ -33,21 +33,15 @@ if __name__ == "__main__":
   sess = tf.Session()
 
   xs = tf.placeholder(tf.float32, [None, 3,160,320])
-
-  print tf.Print(xs,[xs])
-
   x_image=tf.transpose(xs, perm=[0,2,3,1])
   ys = tf.placeholder(tf.float32, [None, 1])
-
-
-  print tf.Print(x_image,[x_image])
 
   parser = argparse.ArgumentParser(description='Steering angle model trainer')
   parser.add_argument('--host', type=str, default="localhost", help='Data server ip address.')
   parser.add_argument('--port', type=int, default=5557, help='Port of server.')
   parser.add_argument('--val_port', type=int, default=5556, help='Port of server for validation dataset.')
   parser.add_argument('--batch', type=int, default=200, help='Batch size.')
-  parser.add_argument('--epoch', type=int, default=200, help='Number of epochs.')
+  parser.add_argument('--epoch', type=int, default=500, help='Number of epochs.')
   parser.add_argument('--epochsize', type=int, default=10000, help='How many frames per epoch.')
   parser.add_argument('--skipvalidate', dest='skipvalidate', action='store_true', help='Multiple path output.')
   parser.set_defaults(skipvalidate=False)
@@ -68,14 +62,28 @@ if __name__ == "__main__":
   b_conv2 = bias_variabel([32])
   h_conv2 = tf.nn.elu(conv2d(h_conv1, W_conv2, 2) + b_conv2)
 
+  shape = h_conv2.get_shape().as_list()
+  h_conv1_slice = tf.slice(h_conv1, [0, 0, 0, 0], [-1, shape[1], shape[2], 3])
+  tf.summary.image("h_conv1_slice",h_conv1_slice)
+
     # conv3
   W_conv3 = weight_variable([5,5,32,64])
   b_conv3 = bias_variabel([64])
   h_conv3 = tf.nn.elu(conv2d(h_conv2, W_conv3, 2) + b_conv3)
 
+
+  shape = h_conv2.get_shape().as_list()
+  h_conv2_slice = tf.slice(h_conv2, [0, 0, 0, 0], [-1, shape[1], shape[2], 3])
+  tf.summary.image("h_conv2_slice",h_conv2_slice)
+
+
     # flat1
   shape = h_conv3.get_shape().as_list()
   flat1 = tf.reshape(h_conv3, [-1, shape[1]*shape[2]* shape[3]])
+
+  h_conv3_slice = tf.slice(h_conv3, [0, 0, 0, 0], [-1, shape[1], shape[2], 3])
+  tf.summary.image("h_conv3_slice",h_conv3_slice)
+
 
     # drop1
   drop1 = tf.nn.dropout(flat1, 0.2)
@@ -96,22 +104,39 @@ if __name__ == "__main__":
   output = tf.layers.dense(elu2, 1) # output
 
   #SE_HER
-  loss = tf.reduce_mean(tf.square(tf.subtract(ys, output)))
+  with tf.name_scope("Loss"):
+      loss = tf.reduce_mean(tf.square(tf.subtract(ys, output)))
+      tf.summary.scalar("loss",loss)
 
   train = tf.train.AdamOptimizer().minimize(loss, global_step=tf.train.get_global_step())
 
   sess.run(tf.global_variables_initializer())
 
+  merged = tf.summary.merge_all()
+  writer = tf.summary.FileWriter("logs/", sess.graph)
+
   steps_per_epoch=10000//(args.batch)
 
   for i in range(args.epoch):
     loss_epoch=0
+
     for j in range(steps_per_epoch):
       batch_xs, batch_ys = next(gen(20, args.host, port=args.port))
       tr,loss_batch=sess.run([train,loss], feed_dict={xs: batch_xs, ys: batch_ys})
       loss_epoch=loss_epoch+loss_batch
-    batch_xs_val, batch_ys_val = next(gen(20, args.host, port=args.port))
-    val_loss=sess.run(loss, feed_dict={xs: batch_xs_val, ys: batch_ys_val})
-    print ("Epoch: ", '%3s' % i, " Loss: ", '%4s' % (loss_epoch/steps_per_epoch), "Val_loss: ", '%4s' % (val_loss))
+
+      if (j % 20 == 0):
+          result = sess.run(merged, feed_dict={xs: batch_xs, ys: batch_ys})
+          writer.add_summary(result, j)
+
+    val_loss_epoch = 0
+    for k in range(10):
+      batch_xs_val, batch_ys_val = next(gen(20, args.host, port=args.port))
+      val_loss=sess.run(loss, feed_dict={xs: batch_xs_val, ys: batch_ys_val})
+      val_loss_epoch += val_loss
+
+
+    val_loss_epoch = val_loss_epoch/10
+    print ("Epoch: ", '%3s' % i, " Loss: ", '%4s' % (loss_epoch/steps_per_epoch), "Val_loss: ", '%4s' % (val_loss_epoch))
 
 sess.close()
